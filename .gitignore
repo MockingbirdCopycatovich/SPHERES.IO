@@ -1,0 +1,23 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+
+# Build folders
+Debug/
+Release/
+x64/
+x86/
+
+# TL-Engine / binaries
+*.exe
+*.dll
+*.obj
+*.pdb
+*.log
+
+# OS junk
+Thumbs.db
+.DS_Store
