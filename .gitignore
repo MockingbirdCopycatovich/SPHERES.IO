@@ -17,7 +17,14 @@ x86/
 *.obj
 *.pdb
 *.log
+*.psh
+*.vsh
+*.cache
 
 # OS junk
 Thumbs.db
 .DS_Store
+
+# Temporary files
+*.log
+*.tmp
