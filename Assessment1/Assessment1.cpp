@@ -3,6 +3,13 @@
 #include <TL-Engine.h>	// TL-Engine include file and namespace
 using namespace tle;
 
+enum class gameState { 
+	Start,
+	Playing,
+	Paused,
+	GameOver
+};
+
 void main()
 {
 	// Create a 3D engine (using TLX engine here) and open a window for it
@@ -37,6 +44,7 @@ void main()
 	ICamera* camera = myEngine->CreateCamera(kManual, 0.0f, 200.0f, 0.0f);
 	camera->RotateX(90.0f);
 
+	gameState currentState = gameState::Start;
 
 	// The main game loop, repeat until engine is stopped
 	while (myEngine->IsRunning())
@@ -45,6 +53,34 @@ void main()
 		myEngine->DrawScene();
 
 		/**** Update your scene each frame here ****/
+
+		if (myEngine->KeyHit(Key_Escape))
+		{
+			myEngine->Stop();
+		}
+
+		switch (currentState)
+		{
+		case gameState::Start:
+			if (myEngine->KeyHit(Key_Space)) {
+				currentState = gameState::Playing;
+			}
+			break;
+		case gameState::Playing:
+			if (myEngine->KeyHit(Key_P)) {
+				currentState = gameState::Paused;
+			}
+			break;
+		case gameState::Paused:
+			if (myEngine->KeyHit(Key_P)) {
+				currentState = gameState::Playing;
+			}
+			break;
+		case gameState::GameOver:
+			break;
+		default:
+			break;
+		}
 
 	}
 
