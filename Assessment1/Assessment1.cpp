@@ -46,35 +46,49 @@ void main()
 
 	gameState currentState = gameState::Start;
 
+	const float kPlayerSpeed = 60.0f;
+	const float kRotationSpeed = 120.0f;
+
 	// The main game loop, repeat until engine is stopped
 	while (myEngine->IsRunning())
 	{
 		// Draw the scene
 		myEngine->DrawScene();
+		float deltaTimer = myEngine->Timer();
 
 		/**** Update your scene each frame here ****/
 
-		if (myEngine->KeyHit(Key_Escape))
-		{
-			myEngine->Stop();
-		}
+		if (myEngine->KeyHit(Key_Escape)) myEngine->Stop();
 
 		switch (currentState)
 		{
 		case gameState::Start:
-			if (myEngine->KeyHit(Key_Space)) {
-				currentState = gameState::Playing;
-			}
+			if (myEngine->KeyHit(Key_Space)) currentState = gameState::Playing;
+
 			break;
 		case gameState::Playing:
-			if (myEngine->KeyHit(Key_P)) {
-				currentState = gameState::Paused;
+		{
+			float moveSpeed = deltaTimer * kPlayerSpeed;
+			float rotationSpeed = deltaTimer * kRotationSpeed;
+
+			if (myEngine->KeyHit(Key_P)) currentState = gameState::Paused;
+
+			if (myEngine->KeyHeld(Key_W)) { 
+				playerSphere->MoveLocalZ(moveSpeed);
+			}
+			if (myEngine->KeyHeld(Key_S)) { 
+				playerSphere->MoveLocalZ(-moveSpeed);
+			}
+			if (myEngine->KeyHeld(Key_A)) { 
+				playerSphere->RotateY(-rotationSpeed);
+			}
+			if (myEngine->KeyHeld(Key_D)) { 
+				playerSphere->RotateY(rotationSpeed);
 			}
 			break;
+		}
 		case gameState::Paused:
-			if (myEngine->KeyHit(Key_P)) {
-				currentState = gameState::Playing;
-			}
+			if (myEngine->KeyHit(Key_P)) currentState = gameState::Playing;
 			break;
 		case gameState::GameOver:
 			break;
