@@ -3,7 +3,7 @@
 #include <TL-Engine.h>	// TL-Engine include file and namespace
 using namespace tle;
 
-enum class gameState { 
+enum gameState { 
 	Start,
 	Playing,
 	Paused,
@@ -45,9 +45,11 @@ void main()
 	camera->RotateX(90.0f);
 
 	gameState currentState = gameState::Start;
+	bool isIsoCamera = false;
 
 	const float kPlayerSpeed = 60.0f;
 	const float kRotationSpeed = 120.0f;
+	const float kCameraSpeed = 100.0f;
 
 	// The main game loop, repeat until engine is stopped
 	while (myEngine->IsRunning())
@@ -59,6 +61,21 @@ void main()
 		/**** Update your scene each frame here ****/
 
 		if (myEngine->KeyHit(Key_Escape)) myEngine->Stop();
+
+		if (myEngine->KeyHit(Key_1)) {
+			camera->SetPosition(0.0f, 200.0f, 0.0f);
+			camera->ResetOrientation();
+			camera->RotateX(90.0f);
+			isIsoCamera = false;
+		}
+
+		if (myEngine->KeyHit(Key_2)) {
+			camera->SetPosition(150.0f, 150.0f, -150.0f);
+			camera->ResetOrientation();
+			camera->RotateX(45.0f);
+			camera->RotateY(-45.0f);
+			isIsoCamera = true;
+		}
 
 		switch (currentState)
 		{
@@ -85,6 +102,15 @@ void main()
 			if (myEngine->KeyHeld(Key_D)) { 
 				playerSphere->RotateY(rotationSpeed);
 			}
+
+			if (!isIsoCamera) {
+				float camMoveSpeed = kCameraSpeed * deltaTimer;
+				if (myEngine->KeyHeld(Key_Up)) camera->MoveZ(camMoveSpeed);
+				if (myEngine->KeyHeld(Key_Down)) camera->MoveZ(-camMoveSpeed);
+				if (myEngine->KeyHeld(Key_Left)) camera->MoveX(-camMoveSpeed);
+				if (myEngine->KeyHeld(Key_Right)) camera->MoveX(camMoveSpeed);
+			}
+
 			break;
 		}
 		case gameState::Paused:
