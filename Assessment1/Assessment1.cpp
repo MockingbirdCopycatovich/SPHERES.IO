@@ -1,6 +1,9 @@
 // Assessment1.cpp: A program using the TL-Engine
 
 #include <TL-Engine.h>	// TL-Engine include file and namespace
+#include <cstdlib>
+#include <ctime>
+
 using namespace tle;
 
 enum gameState { 
@@ -9,6 +12,10 @@ enum gameState {
 	Paused,
 	GameOver
 };
+
+int rand(int min, int max) {
+	return min + int((max - min + 1) * rand() / (RAND_MAX + 1.0));
+}
 
 void main()
 {
@@ -33,10 +40,16 @@ void main()
 
 	IMesh* cubeMesh = myEngine->LoadMesh("minicube.x");
 
-	IModel* cube1 = cubeMesh->CreateModel(-80.0f, 2.5f, 80.0f);
-	IModel* cube2 = cubeMesh->CreateModel(80.0f, 2.5f, 80.0f);
-	IModel* cube3 = cubeMesh->CreateModel(80.0f, 2.5f, -80.0f);
-	IModel* cube4 = cubeMesh->CreateModel(-80.0f, 2.5f, -80.0f);
+	const int numCubes = 12;
+	IModel* cubes[numCubes];
+	srand(time(NULL));
+
+	for (int i = 0; i < numCubes; i++) {
+		int x = rand(-100, 100);
+		int z = rand(-100, 100);
+		cubes[i] = cubeMesh->CreateModel(x, 2.5f, z);
+	}
+
 
 	IMesh* skyMesh = myEngine->LoadMesh("sky.x");
 	IModel* sky = skyMesh->CreateModel(0.0f, -960.0f, 0.0f);
@@ -47,9 +60,9 @@ void main()
 	gameState currentState = gameState::Start;
 	bool isIsoCamera = false;
 
-	const float kPlayerSpeed = 60.0f;
-	const float kRotationSpeed = 120.0f;
-	const float kCameraSpeed = 100.0f;
+	const float playerSpeed = 60.0f;
+	const float rotationSpeed = 120.0f;
+	const float cameraSpeed = 100.0f;
 
 	IFont* gameFont = myEngine->LoadFont("Arial", 36);
 
@@ -90,8 +103,8 @@ void main()
 		}
 		case gameState::Playing:
 		{
-			float moveSpeed = deltaTimer * kPlayerSpeed;
-			float rotationSpeed = deltaTimer * kRotationSpeed;
+			float moveSpeed = deltaTimer * playerSpeed;
+			float rotationSpeed = deltaTimer * rotationSpeed;
 
 			if (myEngine->KeyHit(Key_P)) currentState = gameState::Paused;
 
@@ -109,7 +122,7 @@ void main()
 			}
 
 			if (!isIsoCamera) {
-				float camMoveSpeed = kCameraSpeed * deltaTimer;
+				float camMoveSpeed = cameraSpeed * deltaTimer;
 				if (myEngine->KeyHeld(Key_Up)) camera->MoveZ(camMoveSpeed);
 				if (myEngine->KeyHeld(Key_Down)) camera->MoveZ(-camMoveSpeed);
 				if (myEngine->KeyHeld(Key_Left)) camera->MoveX(-camMoveSpeed);
