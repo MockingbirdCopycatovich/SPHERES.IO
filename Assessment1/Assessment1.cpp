@@ -51,6 +51,8 @@ void main()
 	const float kRotationSpeed = 120.0f;
 	const float kCameraSpeed = 100.0f;
 
+	IFont* gameFont = myEngine->LoadFont("Arial", 36);
+
 	// The main game loop, repeat until engine is stopped
 	while (myEngine->IsRunning())
 	{
@@ -80,9 +82,12 @@ void main()
 		switch (currentState)
 		{
 		case gameState::Start:
-			if (myEngine->KeyHit(Key_Space)) currentState = gameState::Playing;
-
+		{
+			gameFont->Draw("Press SPACE to START", 500, 300, kRed);
+			if (myEngine->KeyHit(Key_Space))
+				currentState = gameState::Playing;
 			break;
+		}
 		case gameState::Playing:
 		{
 			float moveSpeed = deltaTimer * kPlayerSpeed;
@@ -110,14 +115,27 @@ void main()
 				if (myEngine->KeyHeld(Key_Left)) camera->MoveX(-camMoveSpeed);
 				if (myEngine->KeyHeld(Key_Right)) camera->MoveX(camMoveSpeed);
 			}
-
+			float playerPosX = playerSphere->GetX();
+			float playerPosZ = playerSphere->GetZ();
+			if (-100 >= playerPosX 
+				|| 100 <= playerPosX 
+				|| -100 >= playerPosZ 
+				|| 100 <= playerPosZ)
+				currentState = gameState::GameOver;
 			break;
 		}
 		case gameState::Paused:
+		{
 			if (myEngine->KeyHit(Key_P)) currentState = gameState::Playing;
 			break;
+		}
 		case gameState::GameOver:
+		{
+			gameFont->Draw("GAME OVER", 500, 300, kRed);
+			gameFont->Draw("Press R to RESTART", 430, 350, kRed);
+			gameFont->Draw("Press ESC to QUIT", 460, 400, kRed);
 			break;
+		}
 		default:
 			break;
 		}
