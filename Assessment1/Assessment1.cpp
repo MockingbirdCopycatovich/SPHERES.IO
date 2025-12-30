@@ -5,6 +5,7 @@
 #include <ctime>
 
 using namespace tle;
+using namespace std;
 
 enum gameState { 
 	Start,
@@ -13,8 +14,16 @@ enum gameState {
 	GameOver
 };
 
-int rand(int min, int max) {
+int random(int min, int max) {
 	return min + int((max - min + 1) * rand() / (RAND_MAX + 1.0));
+}
+
+bool sphereCubeCollision(IModel* sphere, IModel* cube, float collisionDistance) {
+
+	float dx = sphere->GetX() - cube->GetX();
+	float dz = sphere->GetZ() - cube->GetZ();
+
+	return collisionDistance * collisionDistance > dx * dx + dz * dz;
 }
 
 void main()
@@ -45,11 +54,14 @@ void main()
 	srand(time(NULL));
 
 	for (int i = 0; i < numCubes; i++) {
-		int x = rand(-100, 100);
-		int z = rand(-100, 100);
+		int x = random(-100, 100);
+		int z = random(-100, 100);
 		cubes[i] = cubeMesh->CreateModel(x, 2.5f, z);
 	}
 
+	int playerPoints = 0;
+	float scaleFactor = 1.2f;
+	float collisionDistance = 10.0f;
 
 	IMesh* skyMesh = myEngine->LoadMesh("sky.x");
 	IModel* sky = skyMesh->CreateModel(0.0f, -960.0f, 0.0f);
@@ -104,7 +116,7 @@ void main()
 		case gameState::Playing:
 		{
 			float moveSpeed = deltaTimer * playerSpeed;
-			float rotationSpeed = deltaTimer * rotationSpeed;
+			float rotSpeed = deltaTimer * rotationSpeed;
 
 			if (myEngine->KeyHit(Key_P)) currentState = gameState::Paused;
 
@@ -115,10 +127,10 @@ void main()
 				playerSphere->MoveLocalZ(-moveSpeed);
 			}
 			if (myEngine->KeyHeld(Key_A)) { 
-				playerSphere->RotateY(-rotationSpeed);
+				playerSphere->RotateY(-rotSpeed);
 			}
 			if (myEngine->KeyHeld(Key_D)) { 
-				playerSphere->RotateY(rotationSpeed);
+				playerSphere->RotateY(rotSpeed);
 			}
 
 			if (!isIsoCamera) {
@@ -135,6 +147,20 @@ void main()
 				|| -100 >= playerPosZ 
 				|| 100 <= playerPosZ)
 				currentState = gameState::GameOver;
+
+			for (int i = 0; i < numCubes; i++) {
+				if (cubes[i] != nullptr && sphereCubeCollision(playerSphere, cubes[i], collisionDistance)) {
+					playerPoints += 10;
+
+					cubes[i] = nullptr;
+
+					if (playerPoints % 40 == 0 && playerPoints != 0) {
+						playerSphere->Scale(scaleFactor);
+						playerSphere->SetY(playerSphere->GetY() * scaleFactor);
+					}
+				}
+			}
+			gameFont->Draw("Score: " + to_string(playerPoints), 20, 20, kWhite);
 			break;
 		}
 		case gameState::Paused:
