@@ -54,8 +54,8 @@ void main()
 	srand(time(NULL));
 
 	for (int i = 0; i < numCubes; i++) {
-		int x = random(-100, 100);
-		int z = random(-100, 100);
+		int x = random(-90, 90);
+		int z = random(-90, 90);
 		cubes[i] = cubeMesh->CreateModel(x, 2.5f, z);
 	}
 
@@ -152,15 +152,21 @@ void main()
 				if (cubes[i] != nullptr && sphereCubeCollision(playerSphere, cubes[i], collisionDistance)) {
 					playerPoints += 10;
 
+					cubes[i]->SetPosition(0.0f, -1000.0f, 0.0f);
 					cubes[i] = nullptr;
 
 					if (playerPoints % 40 == 0 && playerPoints != 0) {
 						playerSphere->Scale(scaleFactor);
 						playerSphere->SetY(playerSphere->GetY() * scaleFactor);
+						collisionDistance *= scaleFactor;
 					}
 				}
 			}
 			gameFont->Draw("Score: " + to_string(playerPoints), 20, 20, kWhite);
+
+			if (playerPoints >= 120) {
+				currentState = gameState::GameOver;
+			}
 			break;
 		}
 		case gameState::Paused:
@@ -170,9 +176,17 @@ void main()
 		}
 		case gameState::GameOver:
 		{
-			gameFont->Draw("GAME OVER", 500, 300, kRed);
-			gameFont->Draw("Press R to RESTART", 430, 350, kRed);
-			gameFont->Draw("Press ESC to QUIT", 460, 400, kRed);
+			if (playerPoints >= 120) {
+				gameFont->Draw("CONGRATULATIONS!", 420, 300, kGreen);
+				gameFont->Draw("You collected all cubes", 390, 350, kWhite);
+				gameFont->Draw("Press ESC to Quit", 450, 400, kWhite);
+				gameFont->Draw("Press R to RESTART", 500, 400, kWhite);
+			}
+			else {
+				gameFont->Draw("GAME OVER", 500, 300, kRed);
+				gameFont->Draw("Press R to RESTART", 430, 350, kRed);
+				gameFont->Draw("Press ESC to QUIT", 460, 400, kRed);
+			}
 			break;
 		}
 		default:
