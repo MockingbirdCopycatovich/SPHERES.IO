@@ -26,6 +26,49 @@ bool sphereCubeCollision(IModel* sphere, IModel* cube, float collisionDistance) 
 	return collisionDistance * collisionDistance > dx * dx + dz * dz;
 }
 
+float distanceXZ(float x1, float z1, float x2, float z2) {
+
+	float dx = x1 - x2;
+	float dz = z1 - z2;
+
+	return sqrt(dx * dx + dz * dz);
+}
+
+void spawnCubes(IModel* cubes[], int numCubes, IMesh* cubeMesh, IModel* playerSphere) {
+	const float spawnRange = 90.0f;
+	const float cubeY = 2.5f;
+	const float minCubeDistance = 10.0f;
+	const float minPlayerDistance = 15.0f;
+
+	for (int i = 0; i < numCubes; i++) {
+		float x, z;
+		bool validPosition;
+		do {
+			validPosition = true;
+			x = random(-90, 90);
+			z = random(-90, 90);
+
+			if (distanceXZ(x, z, playerSphere->GetX(), playerSphere->GetZ()) < minPlayerDistance) {
+				validPosition = false;
+			}
+
+			for (int j = 0; j < numCubes; j++) {
+				if (cubes[j] != nullptr && distanceXZ(x, z, cubes[j]->GetX(), cubes[j]->GetZ()) < minCubeDistance) {
+					validPosition = false;
+				}
+			}
+
+		} while (!validPosition);
+
+		if (cubes[i] == nullptr) {
+			cubes[i] = cubeMesh->CreateModel(x, cubeY, z);
+		}
+		else {
+			cubes[i]->SetPosition(x, cubeY, z);
+		}
+	}
+}
+
 void main()
 {
 	// Create a 3D engine (using TLX engine here) and open a window for it
@@ -53,12 +96,6 @@ void main()
 	IModel* cubes[numCubes];
 	srand(time(NULL));
 
-	for (int i = 0; i < numCubes; i++) {
-		int x = random(-90, 90);
-		int z = random(-90, 90);
-		cubes[i] = cubeMesh->CreateModel(x, 2.5f, z);
-	}
-
 	int playerPoints = 0;
 	float scaleFactor = 1.2f;
 	float collisionDistance = 10.0f;
@@ -77,6 +114,9 @@ void main()
 	const float cameraSpeed = 100.0f;
 
 	IFont* gameFont = myEngine->LoadFont("Arial", 36);
+
+	for (int i = 0; i < numCubes; i++) cubes[i] = nullptr;
+	spawnCubes(cubes, numCubes, cubeMesh, playerSphere);
 
 	// The main game loop, repeat until engine is stopped
 	while (myEngine->IsRunning())
@@ -181,6 +221,12 @@ void main()
 				gameFont->Draw("You collected all cubes", 390, 350, kWhite);
 				gameFont->Draw("Press ESC to Quit", 450, 400, kWhite);
 				gameFont->Draw("Press R to RESTART", 500, 400, kWhite);
+
+				if (myEngine->KeyHit(Key_R)) {
+					playerPoints = 0;
+					currentState = Playing;
+					spawnCubes(cubes, numCubes, cubeMesh, playerSphere);
+				}
 			}
 			else {
 				gameFont->Draw("GAME OVER", 500, 300, kRed);
