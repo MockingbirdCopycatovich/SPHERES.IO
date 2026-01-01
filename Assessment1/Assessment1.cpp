@@ -118,6 +118,16 @@ void main()
 	for (int i = 0; i < numCubes; i++) cubes[i] = nullptr;
 	spawnCubes(cubes, numCubes, cubeMesh, playerSphere);
 
+	bool hyperActive = false;
+	float hyperTimer = 0.0f;
+	const float hyperDuration = 5.0f;
+	const float attractRadius = 50.0f;
+	const float attractSpeed = 50.0f;
+
+	IMesh* hyperCubeMesh = myEngine->LoadMesh("minicube.x");
+	IModel* hyperCube = hyperCubeMesh->CreateModel(random(-80, 80), 2.5f, random(-80, 80));
+	hyperCube->SetSkin("hypercube.jpg");
+
 	// The main game loop, repeat until engine is stopped
 	while (myEngine->IsRunning())
 	{
@@ -201,12 +211,51 @@ void main()
 						collisionDistance *= scaleFactor;
 					}
 				}
+				if (cubes[i] != nullptr && hyperActive) {
+					float dx = playerSphere->GetX() - cubes[i]->GetX();
+					float dz = playerSphere->GetZ() - cubes[i]->GetZ();
+					float distance = sqrt(dx * dx + dz * dz);
+
+					if (distance < attractRadius && distance > collisionDistance) {
+						float moveStep = attractSpeed * deltaTimer;
+						cubes[i]->MoveX((dx / distance) * moveStep);
+						cubes[i]->MoveZ((dz / distance) * moveStep);
+					}
+				}
 			}
 			gameFont->Draw("Score: " + to_string(playerPoints), 20, 20, kWhite);
 
 			if (playerPoints >= 120) {
 				currentState = gameState::GameOver;
 			}
+
+			if (hyperCube != nullptr && sphereCubeCollision(playerSphere, hyperCube, collisionDistance)) {
+				hyperActive = true;
+				hyperTimer = hyperDuration;
+				playerSphere->SetSkin("hypersphere.jpg");
+
+				hyperCube->SetPosition(0.0f, -1000.0f, 0.0f);
+				hyperCube = nullptr;
+			}
+
+			if (hyperActive) {
+				hyperTimer -= deltaTimer;
+
+				if (hyperTimer <= 0.0f) {
+					hyperActive = false;
+					
+					float x = playerSphere->GetX();
+					float y = playerSphere->GetY();
+					float z = playerSphere->GetZ();
+
+					playerSphere->~IModel();
+
+					playerSphere = sphereMesh->CreateModel(x, y, z);
+					
+					playerSphere->Scale(pow(scaleFactor, playerPoints/40));
+				}
+			}
+
 			break;
 		}
 		case gameState::Paused:
@@ -219,8 +268,8 @@ void main()
 			if (playerPoints >= 120) {
 				gameFont->Draw("CONGRATULATIONS!", 420, 300, kGreen);
 				gameFont->Draw("You collected all cubes", 390, 350, kWhite);
-				gameFont->Draw("Press ESC to Quit", 450, 400, kWhite);
-				gameFont->Draw("Press R to RESTART", 500, 400, kWhite);
+				gameFont->Draw("Press ESC to Quit", 500, 400, kWhite);
+				gameFont->Draw("Press R to RESTART", 550, 450, kWhite);
 
 				if (myEngine->KeyHit(Key_R)) {
 					playerPoints = 0;
