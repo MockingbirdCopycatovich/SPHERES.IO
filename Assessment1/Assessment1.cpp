@@ -1,346 +1,155 @@
-// Assessment1.cpp: A program using the TL-Engine
+// test.cpp: A program using the TL-Engine
 
 #include <TL-Engine.h>	// TL-Engine include file and namespace
-#include <cstdlib>
-#include <ctime>
+#include <cstdlib> 
+#include <ctime> 
 
-using namespace tle;
+using namespace tle; 
 using namespace std;
 
-enum gameState { 
+enum GameState
+{
 	Start,
 	Playing,
 	Paused,
 	GameOver
 };
 
-int random(int min, int max) {
-	return min + int((max - min + 1) * rand() / (RAND_MAX + 1.0));
+float random(float min, float max) { 
+	return min + float((max - min + 1) * rand() / (RAND_MAX + 1.0)); 
 }
 
-bool sphereCubeCollision(IModel* sphere, IModel* cube, float collisionDistance) {
+bool Collision(IModel* a, IModel* b, float dist) {
 
-	float dx = sphere->GetX() - cube->GetX();
-	float dz = sphere->GetZ() - cube->GetZ();
+	float dx = a->GetX() - b->GetX();
+	float dz = a->GetZ() - b->GetZ();
 
-	return collisionDistance * collisionDistance > dx * dx + dz * dz;
+	return dx * dx + dz * dz < dist * dist;
 }
 
-float distanceXZ(float x1, float z1, float x2, float z2) {
+class Sphere {
+protected:
+	IModel* model;
+	int points;
+	float collisionDistance;
+	float speed;
+	float scaleFactor;
+public:
+	Sphere(IMesh* mesh, float x, float z, const string& skin = "") {
+		model = mesh->CreateModel(x, 10, z);
+		if (!skin.empty()) model->SetSkin(skin.c_str());
+		points = 0;
+		collisionDistance = 10.0f;
+		speed = 60.0f;
+		scaleFactor = 1.2f;
+	}
 
-	float dx = x1 - x2;
-	float dz = z1 - z2;
+	IModel* getModel() { return model; }
+	float getCollisionDistance() { return collisionDistance; }
+	int getPoints() { return points; }
 
-	return sqrt(dx * dx + dz * dz);
-}
-
-void spawnCubes(IModel* cubes[], int numCubes, IMesh* cubeMesh, IModel* playerSphere) {
-	const float spawnRange = 90.0f;
-	const float cubeY = 2.5f;
-	const float minCubeDistance = 10.0f;
-	const float minPlayerDistance = 15.0f;
-
-	for (int i = 0; i < numCubes; i++) {
-		float x, z;
-		bool validPosition;
-		do {
-			validPosition = true;
-			x = random(-90, 90);
-			z = random(-90, 90);
-
-			if (distanceXZ(x, z, playerSphere->GetX(), playerSphere->GetZ()) < minPlayerDistance) {
-				validPosition = false;
-			}
-
-			for (int j = 0; j < numCubes; j++) {
-				if (cubes[j] != nullptr && distanceXZ(x, z, cubes[j]->GetX(), cubes[j]->GetZ()) < minCubeDistance) {
-					validPosition = false;
-				}
-			}
-
-		} while (!validPosition);
-
-		if (cubes[i] == nullptr) {
-			cubes[i] = cubeMesh->CreateModel(x, cubeY, z);
-		}
-		else {
-			cubes[i]->SetPosition(x, cubeY, z);
+	void addPoints() {
+		points += 10;
+		if (points % 40 == 0) {
+			model->Scale(scaleFactor);
+			collisionDistance *= scaleFactor;
+			model->SetY(10.0f);
 		}
 	}
-}
+};
 
-IModel* findClosestCube(IModel* enemy, IModel* cubes[], int numCubes) {
-	IModel* closest = nullptr;
-	float closestDist = FLT_MAX;
+class PlayerSphere : public Sphere {
+	float rotationSpeed;
+public:
+	PlayerSphere(IMesh* mesh) : Sphere(mesh, 0, 0) {
+		rotationSpeed = 120.0f;
+	}
+	void Control(I3DEngine* engine, float dt) {
+		if (engine->KeyHeld(Key_W)) model->MoveLocalZ(speed * dt);
+		if (engine->KeyHeld(Key_S)) model->MoveLocalZ(-speed * dt);
+		if (engine->KeyHeld(Key_A)) model->RotateY(-rotationSpeed * dt);
+		if (engine->KeyHeld(Key_D)) model->RotateY(rotationSpeed * dt);
+	}
+};
 
-	for (int i = 0; i < numCubes; i++) {
-		if (cubes[i] != nullptr) {
-			float dx = cubes[i]->GetX() - enemy->GetX();
-			float dz = cubes[i]->GetZ() - enemy->GetZ();
-			float dist = dx * dx + dz * dz;
+class EnemySphere : public Sphere {
+public:
+	EnemySphere(IMesh* mesh) : Sphere(mesh, 20, 20, "enemysphere.jpg"){}
+	void update(IModel* target, float dt) {
+		if (!target) return;
+		model->LookAt(target);
+		model->MoveLocalZ(speed * dt);
+	}
+};
 
-			if (dist < closestDist) {
-				closestDist = dist;
+class CubeManager {
+	static const int numCubes = 12;
+	IModel* cubes[numCubes];
+	IMesh* mesh;
+public:
+	CubeManager(IMesh* m) {
+		mesh = m;
+		for (int i = 0; i < numCubes; i++)cubes[i] = nullptr;
+	}
+
+	void spawnALL(IModel* player, IModel* enemy, int i) {
+		for (int i = 0; i < numCubes; i++) {
+			float x, z;
+			do {
+				x = random(-95.0, 95.0);
+				z = random(-95.0, 95.0);
+			} while (abs(x - player->GetX()) < 15 && abs(z - player->GetZ()) < 15
+				&& abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15);
+			cubes[i] = mesh->CreateModel(x, 2.5f, z);
+		}
+	}
+	IModel* getCube(int i) { return cubes[i]; }
+	IModel* findClosest(IModel* seeker) {
+		IModel* closest = nullptr;
+		float leastDistance = FLT_MAX;
+		for (int i = 0; i < numCubes; i++) {
+			if (!cubes[i])continue;
+			float dx = cubes[i]->GetX() - seeker->GetX();
+			float dz = cubes[i]->GetZ() - seeker->GetZ();
+			float d = sqrt(dx * dx + dz * dz);
+			if (d < leastDistance) {
+				leastDistance = d;
 				closest = cubes[i];
 			}
 		}
+		return closest;
 	}
-
-	return closest;
-}
+	void respawn(int i, IModel* player, IModel* enemy) {
+		if (!cubes[i])return;
+		float x, z;
+		do {
+			x = random(-95.0, 95.0);
+			z = random(-95.0, 95.0);
+		} while (abs(x - player->GetX()) < 15 && abs(z - player->GetZ()) < 15
+			&& abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15);
+		cubes[i] = mesh->CreateModel(x, 2.5f, z);
+	}
+};
 
 void main()
 {
 	// Create a 3D engine (using TLX engine here) and open a window for it
-	I3DEngine* myEngine = New3DEngine( kTLX );
+	I3DEngine* myEngine = New3DEngine(kTLX);
 	myEngine->StartWindowed();
 
 	// Add default folder for meshes and other media
-	myEngine->AddMediaFolder( "C:\\Users\\adm\\TL-Engine\\Media" );
+	myEngine->AddMediaFolder("C:\\Users\\adm\\TL-Engine\\Media");
 
 	/**** Set up your scene here ****/
-	IMesh* waterMesh = myEngine->LoadMesh("water.x");
-	IModel* water = waterMesh->CreateModel(0.0f, -5.0f, 0.0f);
 
-	IMesh* islandMesh = myEngine->LoadMesh("island.x");
-	IModel* island = islandMesh->CreateModel(0.0f, -5.0f, 0.0f);
-
-
-	IMesh* sphereMesh = myEngine->LoadMesh("spheremesh.x");
-	IModel* playerSphere = sphereMesh->CreateModel(0.0f, 10.0f, 0.0f);
-
-
-	IMesh* cubeMesh = myEngine->LoadMesh("minicube.x");
-
-	const int numCubes = 12;
-	IModel* cubes[numCubes];
-	srand(time(NULL));
-
-	int playerPoints = 0;
-	float scaleFactor = 1.2f;
-	float playerCollisionDistance = 10.0f;
-
-	IMesh* skyMesh = myEngine->LoadMesh("sky.x");
-	IModel* sky = skyMesh->CreateModel(0.0f, -960.0f, 0.0f);
-
-	ICamera* camera = myEngine->CreateCamera(kManual, 0.0f, 200.0f, 0.0f);
-	camera->RotateX(90.0f);
-
-	gameState currentState = gameState::Start;
-	bool isIsoCamera = false;
-
-	const float playerSpeed = 60.0f;
-	const float rotationSpeed = 120.0f;
-	const float cameraSpeed = 100.0f;
-
-	IFont* gameFont = myEngine->LoadFont("Arial", 36);
-
-	for (int i = 0; i < numCubes; i++) cubes[i] = nullptr;
-	spawnCubes(cubes, numCubes, cubeMesh, playerSphere);
-
-	bool playerHyperActive = false;
-	float hyperTimer = 0.0f;
-	const float hyperDuration = 5.0f;
-	const float attractRadius = 50.0f;
-	const float attractSpeed = 50.0f;
-
-	IMesh* hyperCubeMesh = myEngine->LoadMesh("minicube.x");
-	IModel* hyperCube = hyperCubeMesh->CreateModel(random(-80, 80), 2.5f, random(-80, 80));
-	hyperCube->SetSkin("hypercube.jpg");
-
-	IModel* enemySphere = sphereMesh->CreateModel(20.0f, 10.0f, 20.0f);
-	enemySphere->SetSkin("enemysphere.jpg");
-
-	int enemyPoints = 0;
-	bool enemyHyperActive = false;
-	float enemyCollisionDistance = 10.0f;
-	float enemyHyperTimer = 0.0f;
 
 	// The main game loop, repeat until engine is stopped
 	while (myEngine->IsRunning())
 	{
 		// Draw the scene
 		myEngine->DrawScene();
-		float deltaTimer = myEngine->Timer();
 
 		/**** Update your scene each frame here ****/
-
-		if (myEngine->KeyHit(Key_Escape)) myEngine->Stop();
-
-		if (myEngine->KeyHit(Key_1)) {
-			camera->SetPosition(0.0f, 200.0f, 0.0f);
-			camera->ResetOrientation();
-			camera->RotateX(90.0f);
-			isIsoCamera = false;
-		}
-
-		if (myEngine->KeyHit(Key_2)) {
-			camera->SetPosition(150.0f, 150.0f, -150.0f);
-			camera->ResetOrientation();
-			camera->RotateX(45.0f);
-			camera->RotateY(-45.0f);
-			isIsoCamera = true;
-		}
-
-		switch (currentState)
-		{
-		case gameState::Start:
-		{
-			gameFont->Draw("Press SPACE to START", 500, 300, kRed);
-			if (myEngine->KeyHit(Key_Space))
-				currentState = gameState::Playing;
-			break;
-		}
-		case gameState::Playing:
-		{
-			float moveSpeed = deltaTimer * playerSpeed;
-			float rotSpeed = deltaTimer * rotationSpeed;
-
-			if (myEngine->KeyHit(Key_P)) currentState = gameState::Paused;
-
-			if (myEngine->KeyHeld(Key_W)) { 
-				playerSphere->MoveLocalZ(moveSpeed);
-			}
-			if (myEngine->KeyHeld(Key_S)) { 
-				playerSphere->MoveLocalZ(-moveSpeed);
-			}
-			if (myEngine->KeyHeld(Key_A)) { 
-				playerSphere->RotateY(-rotSpeed);
-			}
-			if (myEngine->KeyHeld(Key_D)) { 
-				playerSphere->RotateY(rotSpeed);
-			}
-
-			if (!isIsoCamera) {
-				float camMoveSpeed = cameraSpeed * deltaTimer;
-				if (myEngine->KeyHeld(Key_Up)) camera->MoveZ(camMoveSpeed);
-				if (myEngine->KeyHeld(Key_Down)) camera->MoveZ(-camMoveSpeed);
-				if (myEngine->KeyHeld(Key_Left)) camera->MoveX(-camMoveSpeed);
-				if (myEngine->KeyHeld(Key_Right)) camera->MoveX(camMoveSpeed);
-			}
-			float playerPosX = playerSphere->GetX();
-			float playerPosZ = playerSphere->GetZ();
-			if (-100 >= playerPosX 
-				|| 100 <= playerPosX 
-				|| -100 >= playerPosZ 
-				|| 100 <= playerPosZ)
-				currentState = gameState::GameOver;
-
-			for (int i = 0; i < numCubes; i++) {
-				if (cubes[i] != nullptr && sphereCubeCollision(playerSphere, cubes[i], playerCollisionDistance)) {
-					playerPoints += 10;
-
-					cubes[i]->SetPosition(0.0f, -1000.0f, 0.0f);
-					cubes[i] = nullptr;
-
-					if (playerPoints % 40 == 0 && playerPoints != 0) {
-						playerSphere->Scale(scaleFactor);
-						playerSphere->SetY(playerSphere->GetY() * scaleFactor);
-						playerCollisionDistance *= scaleFactor;
-					}
-				}
-				if (cubes[i] != nullptr && playerHyperActive) {
-					float dx = playerSphere->GetX() - cubes[i]->GetX();
-					float dz = playerSphere->GetZ() - cubes[i]->GetZ();
-					float distance = sqrt(dx * dx + dz * dz);
-
-					if (distance < attractRadius && distance > playerCollisionDistance) {
-						float moveStep = attractSpeed * deltaTimer;
-						cubes[i]->MoveX((dx / distance) * moveStep);
-						cubes[i]->MoveZ((dz / distance) * moveStep);
-					}
-				}
-
-				if (cubes[i] != nullptr && sphereCubeCollision(enemySphere, cubes[i], enemyCollisionDistance)) {
-					enemyPoints += 10;
-
-					cubes[i]->SetPosition(0.0f, -1000.0f, 0.0f);
-					cubes[i] = nullptr;
-
-					if (enemyPoints % 40 == 0 && enemyPoints != 0) {
-						enemySphere->Scale(scaleFactor);
-						enemySphere->SetY(enemySphere->GetY() * scaleFactor);
-						enemyCollisionDistance *= scaleFactor;
-						enemySphere->SetY(10.0f);
-
-					}
-				}
-				if (cubes[i] != nullptr && enemyHyperActive) {
-					float dx = enemySphere->GetX() - cubes[i]->GetX();
-					float dz = enemySphere->GetZ() - cubes[i]->GetZ();
-					float distance = sqrt(dx * dx + dz * dz);
-
-					if (distance < attractRadius && distance > enemyCollisionDistance) {
-						float moveStep = attractSpeed * deltaTimer;
-						cubes[i]->MoveX((dx / distance) * moveStep);
-						cubes[i]->MoveZ((dz / distance) * moveStep);
-					}
-				}
-			}
-			gameFont->Draw("Score: " + to_string(enemyPoints), 20, 50, kWhite);
-
-			if (playerPoints >= 120) {
-				currentState = gameState::GameOver;
-			}
-
-			if (hyperCube != nullptr && sphereCubeCollision(enemySphere, hyperCube, enemyCollisionDistance)) {
-				enemyHyperActive = true;
-				enemyHyperTimer = hyperDuration;
-				enemySphere->SetSkin("hypersphere.jpg");
-
-				hyperCube->SetPosition(0.0f, -1000.0f, 0.0f);
-				hyperCube = nullptr;
-			}
-
-			if (enemyHyperActive) {
-				enemyHyperTimer -= deltaTimer;
-
-				if (enemyHyperTimer <= 0.0f) {
-					enemyHyperActive = false;
-					enemySphere->SetSkin("enemysphere.jpg");
-				}
-			}
-
-			IModel* targetCube = findClosestCube(enemySphere, cubes, numCubes);
-
-			if (targetCube != nullptr) {
-				enemySphere->LookAt(targetCube);
-				enemySphere->MoveLocalZ(playerSpeed * deltaTimer);
-			}
-
-
-
-			break;
-		}
-		case gameState::Paused:
-		{
-			if (myEngine->KeyHit(Key_P)) currentState = gameState::Playing;
-			break;
-		}
-		case gameState::GameOver:
-		{
-			if (playerPoints >= 120) {
-				gameFont->Draw("CONGRATULATIONS!", 420, 300, kGreen);
-				gameFont->Draw("You collected all cubes", 390, 350, kWhite);
-				gameFont->Draw("Press ESC to Quit", 500, 400, kWhite);
-				gameFont->Draw("Press R to RESTART", 550, 450, kWhite);
-
-				if (myEngine->KeyHit(Key_R)) {
-					playerPoints = 0;
-					currentState = Playing;
-					spawnCubes(cubes, numCubes, cubeMesh, playerSphere);
-				}
-			}
-			else {
-				gameFont->Draw("GAME OVER", 500, 300, kRed);
-				gameFont->Draw("Press R to RESTART", 430, 350, kRed);
-				gameFont->Draw("Press ESC to QUIT", 460, 400, kRed);
-			}
-			break;
-		}
-		default:
-			break;
-		}
 
 	}
 
