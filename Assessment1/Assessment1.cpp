@@ -92,14 +92,14 @@ public:
 		for (int i = 0; i < numCubes; i++)cubes[i] = nullptr;
 	}
 
-	void spawnALL(IModel* player, IModel* enemy, int i) {
+	void spawnAll(IModel* player, IModel* enemy) {
 		for (int i = 0; i < numCubes; i++) {
 			float x, z;
 			do {
 				x = random(-95.0, 95.0);
 				z = random(-95.0, 95.0);
-			} while (abs(x - player->GetX()) < 15 && abs(z - player->GetZ()) < 15
-				&& abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15);
+			} while ((abs(x - player->GetX()) < 15 && abs(z - player->GetZ()) < 15)
+				|| (abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15));
 			cubes[i] = mesh->CreateModel(x, 2.5f, z);
 		}
 	}
@@ -125,9 +125,9 @@ public:
 		do {
 			x = random(-95.0, 95.0);
 			z = random(-95.0, 95.0);
-		} while (abs(x - player->GetX()) < 15 && abs(z - player->GetZ()) < 15
-			&& abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15);
-		cubes[i] = mesh->CreateModel(x, 2.5f, z);
+		} while ((abs(x - player->GetX()) < 15 && abs(z - player->GetZ()) < 15)
+			|| (abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15));
+		cubes[i]->SetPosition(x, 2.5f, z);
 	}
 };
 
@@ -141,16 +141,90 @@ void main()
 	myEngine->AddMediaFolder("C:\\Users\\adm\\TL-Engine\\Media");
 
 	/**** Set up your scene here ****/
+	srand(time(NULL));
 
+	IMesh* waterMesh = myEngine->LoadMesh("water.x");
+	IModel* water = waterMesh->CreateModel(0.0f, -5.0f, 0.0f);
+
+	IMesh* islandMesh = myEngine->LoadMesh("island.x");
+	IModel* island = islandMesh->CreateModel(0.0f, -5.0f, 0.0f);
+
+	IMesh* skyMesh = myEngine->LoadMesh("sky.x");
+	IModel* sky = skyMesh->CreateModel(0.0f, -960.0f, 0.0f);
+
+	IMesh* SphereMesh = myEngine->LoadMesh("spheremesh.x");
+	IMesh* CubeMesh = myEngine->LoadMesh("minicube.x");
+
+	PlayerSphere player(SphereMesh);
+	EnemySphere enemy(SphereMesh);
+
+
+	CubeManager cubes(CubeMesh);
+	cubes.spawnAll(player.getModel(), enemy.getModel());
+
+	ICamera* camera = myEngine->CreateCamera(kManual, 0.0f, 200.0f, 0.0f);
+	camera->RotateX(90.0f);
+
+	GameState state = Start;
+
+	float deltaTime = 0.0f;
 
 	// The main game loop, repeat until engine is stopped
 	while (myEngine->IsRunning())
 	{
 		// Draw the scene
 		myEngine->DrawScene();
-
 		/**** Update your scene each frame here ****/
+		deltaTime = myEngine->Timer();
 
+		if (myEngine->KeyHit(Key_Escape))myEngine->Stop();
+
+		switch (state)
+		{
+		case Start:
+		{
+			if (myEngine->KeyHit(Key_Space))state = Playing;
+			break;
+		}
+		case Playing:
+		{
+			player.Control(myEngine, deltaTime);
+
+			IModel* target = cubes.findClosest(enemy.getModel());
+			enemy.update(target, deltaTime);
+
+			for (int i = 0; i < 12; i++) {
+				IModel* cube = cubes.getCube(i);
+				if (!cube)continue;
+
+				if (Collision(player.getModel(), cube, player.getCollisionDistance())) {
+					player.addPoints();
+					cubes.respawn(i, player.getModel(), enemy.getModel());
+				}
+
+				if (Collision(enemy.getModel(), cube, enemy.getCollisionDistance())) {
+					enemy.addPoints();
+					cubes.respawn(i, player.getModel(), enemy.getModel());
+				}
+
+			}
+
+			break;
+		}
+		case Paused:
+		{
+			break;
+		}
+		case GameOver:
+		{
+			if (myEngine->KeyHit(Key_R))state = Playing;
+			break;
+		}
+		default:
+		{
+			break;
+		}
+		}
 	}
 
 	// Delete the 3D engine now we are finished with it
