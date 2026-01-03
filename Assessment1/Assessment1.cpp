@@ -162,6 +162,18 @@ public:
 		cubes[i]->SetPosition(x, 2.5f, z);
 	}
 	float getCollisionDistance() { return collisionDistance; }
+	
+	void attractCubes(IModel* sphere, float dt) {
+		for (int i = 0; i < numCubes; i++) {
+			if (!cubes[i])continue;
+
+			float dx = sphere->GetX() - cubes[i]->GetX();
+			float dz = sphere->GetZ() - cubes[i]->GetZ();
+			float dist = sqrt(dx * dx + dz * dz);
+
+			if (dist <= 50.0f) cubes[i]->Move(dx * dt, 0, dz * dt);
+		}
+	}
 };
 
 class HyperCube {
@@ -291,6 +303,31 @@ void main()
 				if (Collision(enemy.getModel(), hyper.getModel(), enemy.getCollisionDistance() + hyper.getCollisionDistance())) {
 					enemy.activateHyper();
 					hyper.deActive();
+				}
+			}
+
+			if (!hyper.isActive()) {
+				if (player.isHyper()) cubes.attractCubes(player.getModel(), deltaTime);
+				else cubes.attractCubes(enemy.getModel(), deltaTime);
+			}
+
+			if (Collision(player.getModel(), enemy.getModel(), player.getCollisionDistance() + enemy.getCollisionDistance())) {
+				int diff = abs(player.getPoints() - enemy.getPoints());
+
+				if (diff <= 40) {
+					player.getModel()->MoveLocalZ(-20 * deltaTime);
+					enemy.getModel()->MoveLocalZ(-20 * deltaTime);
+				}
+				else {
+					if (player.getPoints() > enemy.getPoints()) {
+						for (int i = 0; i < 4;i++)player.addPoints();
+						enemy.getModel()->SetPosition(0, -1000, 0);
+						state = GameOver;
+					}else{
+						for (int i = 0; i < 4; i++)enemy.addPoints();
+						player.getModel()->SetPosition(0, -1000, 0);
+						state = GameOver;
+					}
 				}
 			}
 
