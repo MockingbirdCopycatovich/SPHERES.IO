@@ -34,6 +34,10 @@ protected:
 	float collisionDistance;
 	float speed;
 	float scaleFactor;
+
+	bool hyperState;
+	float hyperTimer;
+	float baseSpeed;
 public:
 	Sphere(IMesh* mesh, float x, float z, const string& skin = "") {
 		model = mesh->CreateModel(x, 10, z);
@@ -41,7 +45,11 @@ public:
 		points = 0;
 		collisionDistance = 10.0f;
 		speed = 60.0f;
+		baseSpeed = speed;
 		scaleFactor = 1.2f;
+
+		hyperState = false;
+		hyperTimer = 0.0f;
 	}
 
 	IModel* getModel() { return model; }
@@ -56,6 +64,25 @@ public:
 			model->SetY(10.0f);
 		}
 	}
+
+	void activateHyper() {
+		if (hyperState)return;
+		hyperState = true;
+		hyperTimer = 5.0f;
+		speed = baseSpeed * 1.5;
+	}
+
+	void updateHyper(float dt) {
+		if (hyperState) {
+			hyperTimer -= dt;
+			if (hyperTimer <= 0.0f) {
+				hyperState = false;
+				speed = baseSpeed;
+			}
+		}
+	}
+
+	bool isHyper() { return hyperState; }
 };
 
 class PlayerSphere : public Sphere {
@@ -65,6 +92,7 @@ public:
 		rotationSpeed = 120.0f;
 	}
 	void Control(I3DEngine* engine, float dt) {
+		updateHyper(dt);
 		if (engine->KeyHeld(Key_W)) model->MoveLocalZ(speed * dt);
 		if (engine->KeyHeld(Key_S)) model->MoveLocalZ(-speed * dt);
 		if (engine->KeyHeld(Key_A)) model->RotateY(-rotationSpeed * dt);
@@ -76,6 +104,8 @@ class EnemySphere : public Sphere {
 public:
 	EnemySphere(IMesh* mesh) : Sphere(mesh, 20, 20, "enemysphere.jpg"){}
 	void update(IModel* target, float dt) {
+		updateHyper(dt);
+
 		if (!target) return;
 		model->LookAt(target);
 		model->MoveLocalZ(speed * dt);
@@ -86,9 +116,11 @@ class CubeManager {
 	static const int numCubes = 12;
 	IModel* cubes[numCubes];
 	IMesh* mesh;
+	float collisionDistance;
 public:
 	CubeManager(IMesh* m) {
 		mesh = m;
+		collisionDistance = 2.5f;
 		for (int i = 0; i < numCubes; i++)cubes[i] = nullptr;
 	}
 
@@ -129,6 +161,28 @@ public:
 			|| (abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15));
 		cubes[i]->SetPosition(x, 2.5f, z);
 	}
+	float getCollisionDistance() { return collisionDistance; }
+};
+
+class HyperCube {
+	IModel* model;
+	bool active;
+	float collisionDistance;
+public:
+	HyperCube(IMesh* mesh, float x, float z) {
+		model = mesh->CreateModel(x, 2.5f, z);
+		model->SetSkin("hypercube.jpg");
+		active = true;
+		collisionDistance = 2.5;
+	}
+	IModel* getModel() { return model; }
+	bool isActive() { return active; }
+
+	void deActive() {
+		active = false;
+		model->SetPosition(0, -1000, 0);
+	}
+	float getCollisionDistance() { return collisionDistance; }
 };
 
 void main()
@@ -161,6 +215,19 @@ void main()
 
 	CubeManager cubes(CubeMesh);
 	cubes.spawnAll(player.getModel(), enemy.getModel());
+	float hx, hz;
+	do {
+		hx = random(-95.0f, 95.0f);
+		hz = random(-95.0f, 95.0f);
+	} while (
+		(abs(hx - player.getModel()->GetX()) < 15 &&
+		abs(hz - player.getModel()->GetZ()) < 15) ||
+		(abs(hx - enemy.getModel()->GetX()) < 15 &&
+			abs(hz - enemy.getModel()->GetZ()) < 15)
+		);
+
+	HyperCube hyper(CubeMesh, hx, hz);
+
 
 	ICamera* camera = myEngine->CreateCamera(kManual, 0.0f, 200.0f, 0.0f);
 	camera->RotateX(90.0f);
@@ -190,24 +257,44 @@ void main()
 		{
 			player.Control(myEngine, deltaTime);
 
-			IModel* target = cubes.findClosest(enemy.getModel());
+			IModel* target = nullptr;
+			if (hyper.isActive()) {
+				target = hyper.getModel();
+			}
+			else {
+				target = cubes.findClosest(enemy.getModel());
+			}
 			enemy.update(target, deltaTime);
 
 			for (int i = 0; i < 12; i++) {
 				IModel* cube = cubes.getCube(i);
 				if (!cube)continue;
 
-				if (Collision(player.getModel(), cube, player.getCollisionDistance())) {
+				if (Collision(player.getModel(), cube, player.getCollisionDistance() + cubes.getCollisionDistance())) {
 					player.addPoints();
 					cubes.respawn(i, player.getModel(), enemy.getModel());
 				}
 
-				if (Collision(enemy.getModel(), cube, enemy.getCollisionDistance())) {
+				if (Collision(enemy.getModel(), cube, enemy.getCollisionDistance() + cubes.getCollisionDistance())) {
 					enemy.addPoints();
 					cubes.respawn(i, player.getModel(), enemy.getModel());
 				}
 
 			}
+
+			if (hyper.isActive()) {
+				if (Collision(player.getModel(), hyper.getModel(), player.getCollisionDistance() + hyper.getCollisionDistance())) {
+					player.activateHyper();
+					hyper.deActive();
+				}
+
+				if (Collision(enemy.getModel(), hyper.getModel(), enemy.getCollisionDistance() + hyper.getCollisionDistance())) {
+					enemy.activateHyper();
+					hyper.deActive();
+				}
+			}
+
+			if (player.getPoints() >= 120 || enemy.getPoints() >= 120) state = GameOver;
 
 			break;
 		}
