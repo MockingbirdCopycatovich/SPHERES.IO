@@ -12,6 +12,7 @@ enum GameState
 	Start,
 	Playing,
 	Paused,
+	GameWon,
 	GameOver
 };
 
@@ -32,6 +33,7 @@ protected:
 	IModel* model;
 	int points;
 	float collisionDistance;
+	const float kSphereSpeed = 60.0f;
 	float speed;
 	float scaleFactor;
 
@@ -44,7 +46,7 @@ public:
 		if (!skin.empty()) model->SetSkin(skin.c_str());
 		points = 0;
 		collisionDistance = 10.0f;
-		speed = 60.0f;
+		speed = kSphereSpeed;
 		baseSpeed = speed;
 		scaleFactor = 1.2f;
 
@@ -70,6 +72,7 @@ public:
 		hyperState = true;
 		hyperTimer = 5.0f;
 		speed = baseSpeed * 1.5;
+		model->SetSkin("hypersphere.jpg");
 	}
 
 	void updateHyper(float dt) {
@@ -86,10 +89,11 @@ public:
 };
 
 class PlayerSphere : public Sphere {
+	const float kRotationSpeed = 120.0f;
 	float rotationSpeed;
 public:
 	PlayerSphere(IMesh* mesh) : Sphere(mesh, 0, 0) {
-		rotationSpeed = 120.0f;
+		rotationSpeed = kRotationSpeed;
 	}
 	void Control(I3DEngine* engine, float dt) {
 		updateHyper(dt);
@@ -240,9 +244,12 @@ void main()
 
 	HyperCube hyper(CubeMesh, hx, hz);
 
+	IFont* gameFont = myEngine->LoadFont("Arial", 36);
 
 	ICamera* camera = myEngine->CreateCamera(kManual, 0.0f, 200.0f, 0.0f);
-	camera->RotateX(90.0f);
+	camera->RotateLocalX(90.0f);
+	bool isIsometric = false;
+	const float cameraSpeed = 100.0f;
 
 	GameState state = Start;
 
@@ -258,10 +265,26 @@ void main()
 
 		if (myEngine->KeyHit(Key_Escape))myEngine->Stop();
 
+		if (myEngine->KeyHit(Key_1)) {
+			camera->SetPosition(0.0f, 200.0f, 0.0f);
+			camera->ResetOrientation();
+			camera->RotateLocalX(90.0f);
+			isIsometric = false;
+		}
+
+		if (myEngine->KeyHit(Key_2)) {
+			camera->SetPosition(150.0f, 150.0f, -150.0f);
+			camera->ResetOrientation();
+			camera->RotateX(45.0f);
+			camera->RotateY(-45.0f);
+			isIsometric = true;
+		}
+
 		switch (state)
 		{
 		case Start:
-		{
+		{	
+			gameFont->Draw("Press SPACE to START", 500, 300, kRed);
 			if (myEngine->KeyHit(Key_Space))state = Playing;
 			break;
 		}
@@ -333,15 +356,63 @@ void main()
 
 			if (player.getPoints() >= 120 || enemy.getPoints() >= 120) state = GameOver;
 
+			if (!isIsometric) {
+				float camMoveSpeed = cameraSpeed * deltaTime;
+				if (myEngine->KeyHeld(Key_Up)) camera->MoveZ(camMoveSpeed);
+				if (myEngine->KeyHeld(Key_Down)) camera->MoveZ(-camMoveSpeed);
+				if (myEngine->KeyHeld(Key_Left)) camera->MoveX(-camMoveSpeed);
+				if (myEngine->KeyHeld(Key_Right)) camera->MoveX(camMoveSpeed);
+			}
+
+			float playerPosX = player.getModel()->GetX();
+			float playerPosZ = player.getModel()->GetZ();
+			if (-100 >= playerPosX
+				|| 100 <= playerPosX
+				|| -100 >= playerPosZ
+				|| 100 <= playerPosZ)
+				state = GameOver;
+
+			gameFont->Draw(
+				("Player: " + to_string(player.getPoints())).c_str(),
+				900, 20, kWhite);
+
+			gameFont->Draw(
+				("Enemy: " + to_string(enemy.getPoints())).c_str(),
+				900, 40, kRed);
+
+			if (myEngine->KeyHit(Key_P))state = Paused;
+
 			break;
 		}
 		case Paused:
 		{
+			gameFont->Draw(
+				"Game is PAUSED", 500, 500, kWhite
+			);
+			if (myEngine->KeyHit(Key_P))state = Playing;
 			break;
 		}
 		case GameOver:
 		{
-			if (myEngine->KeyHit(Key_R))state = Playing;
+			if (player.getPoints() >= 120) {
+				gameFont->Draw("CONGRATULATIONS!", 420, 300, kGreen);
+				gameFont->Draw("You have reached 120 points", 390, 350, kWhite);
+				gameFont->Draw("Press ESC to Quit", 500, 400, kWhite);
+				gameFont->Draw("Press R to RESTART", 550, 450, kWhite);
+			}
+			if (enemy.getPoints() >= 120) {
+				gameFont->Draw("You Lost!", 420, 300, kRed);
+				gameFont->Draw("The opponent have reached 120 points", 390, 350, kWhite);
+				gameFont->Draw("Press ESC to Quit", 500, 400, kWhite);
+				gameFont->Draw("Press R to RESTART", 550, 450, kWhite);
+			}
+			if (myEngine->KeyHit(Key_R)) {
+
+			}
+			break;
+		}
+		case GameWon:
+		{
 			break;
 		}
 		default:
