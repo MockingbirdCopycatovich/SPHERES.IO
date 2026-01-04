@@ -105,14 +105,36 @@ public:
 };
 
 class EnemySphere : public Sphere {
+	float idleDirection;
 public:
-	EnemySphere(IMesh* mesh) : Sphere(mesh, 20, 20, "enemysphere.jpg"){}
+	EnemySphere(IMesh* mesh) : Sphere(mesh, 20, 20, "enemysphere.jpg") {
+		idleDirection = random(0.0f, 360.0f);
+		baseSpeed = baseSpeed * 3 / 4;
+		speed = baseSpeed;
+	}
+
 	void update(IModel* target, float dt) {
 		updateHyper(dt);
 
 		if (!target) return;
 		model->LookAt(target);
 		model->MoveLocalZ(speed * dt);
+	}
+	void idle(float dt) {
+		model->MoveLocalZ(speed * 0.5f * dt);
+
+		float x = model->GetX();
+		float z = model->GetZ();
+
+		bool hitWall = false;
+
+		if (x <= -95.0f || x >= 95.0f) hitWall = true;
+		if (z <= -95.0f || z >= 95.0f) hitWall = true;
+
+		if (hitWall) {
+			idleDirection = random(90.0f, 270.0f);
+			model->RotateY(idleDirection);
+		}
 	}
 };
 
@@ -244,7 +266,8 @@ void main()
 
 	HyperCube hyper(CubeMesh, hx, hz);
 
-	IFont* gameFont = myEngine->LoadFont("Arial", 36);
+	IFont* menuFont = myEngine->LoadFont("Arial", 36);
+	IFont* titleFont = myEngine->LoadFont("Arial", 72);
 
 	ICamera* camera = myEngine->CreateCamera(kManual, 0.0f, 200.0f, 0.0f);
 	camera->RotateLocalX(90.0f);
@@ -280,11 +303,16 @@ void main()
 			isIsometric = true;
 		}
 
+		int screenCenterX = 600;
+		int screenCenterY = 300;
+
 		switch (state)
 		{
 		case Start:
 		{	
-			gameFont->Draw("Press SPACE to START", 500, 300, kRed);
+			titleFont->Draw("SPHERES.IO", screenCenterX - 200, screenCenterY, kWhite);
+			menuFont->Draw("by Vladislav Vasilev", screenCenterX + 50, screenCenterY + 80, kLightGrey);
+			menuFont->Draw("Press SPACE to Start", screenCenterX - 180, screenCenterY + 150, kRed);
 			if (myEngine->KeyHit(Key_Space))state = Playing;
 			break;
 		}
@@ -345,16 +373,21 @@ void main()
 					if (player.getPoints() > enemy.getPoints()) {
 						for (int i = 0; i < 4;i++)player.addPoints();
 						enemy.getModel()->SetPosition(0, -1000, 0);
-						state = GameOver;
+						state = GameWon;
 					}else{
 						for (int i = 0; i < 4; i++)enemy.addPoints();
 						player.getModel()->SetPosition(0, -1000, 0);
 						state = GameOver;
+						enemy.getModel()->RotateY(random(90.0f, 360.0f));
 					}
 				}
 			}
 
-			if (player.getPoints() >= 120 || enemy.getPoints() >= 120) state = GameOver;
+			if (player.getPoints() >= 120) state = GameWon;
+			if (enemy.getPoints() >= 120) {
+				state = GameOver;
+				enemy.getModel()->RotateY(random(90.0f, 360.0f));
+			}
 
 			if (!isIsometric) {
 				float camMoveSpeed = cameraSpeed * deltaTime;
@@ -370,13 +403,16 @@ void main()
 				|| 100 <= playerPosX
 				|| -100 >= playerPosZ
 				|| 100 <= playerPosZ)
+			{
 				state = GameOver;
+				enemy.getModel()->RotateY(random(90.0f, 360.0f));
+			}
 
-			gameFont->Draw(
+			menuFont->Draw(
 				("Player: " + to_string(player.getPoints())).c_str(),
 				900, 20, kWhite);
 
-			gameFont->Draw(
+			menuFont->Draw(
 				("Enemy: " + to_string(enemy.getPoints())).c_str(),
 				900, 40, kRed);
 
@@ -386,7 +422,7 @@ void main()
 		}
 		case Paused:
 		{
-			gameFont->Draw(
+			menuFont->Draw(
 				"Game is PAUSED", 500, 500, kWhite
 			);
 			if (myEngine->KeyHit(Key_P))state = Playing;
@@ -394,25 +430,32 @@ void main()
 		}
 		case GameOver:
 		{
-			if (player.getPoints() >= 120) {
-				gameFont->Draw("CONGRATULATIONS!", 420, 300, kGreen);
-				gameFont->Draw("You have reached 120 points", 390, 350, kWhite);
-				gameFont->Draw("Press ESC to Quit", 500, 400, kWhite);
-				gameFont->Draw("Press R to RESTART", 550, 450, kWhite);
-			}
-			if (enemy.getPoints() >= 120) {
-				gameFont->Draw("You Lost!", 420, 300, kRed);
-				gameFont->Draw("The opponent have reached 120 points", 390, 350, kWhite);
-				gameFont->Draw("Press ESC to Quit", 500, 400, kWhite);
-				gameFont->Draw("Press R to RESTART", 550, 450, kWhite);
-			}
-			if (myEngine->KeyHit(Key_R)) {
+			titleFont->Draw("GAME OVER", screenCenterX - 100, screenCenterY - 50, kRed);
 
-			}
+			menuFont->Draw(
+				("Player: " + to_string(player.getPoints())).c_str(),
+				screenCenterX - 50, screenCenterY + 100, kWhite
+			);
+
+			menuFont->Draw(
+				("Enemy: " + to_string(enemy.getPoints())).c_str(),
+				screenCenterX - 50, screenCenterY + 150, kWhite
+			);
+
+			enemy.idle(deltaTime);
+
 			break;
 		}
 		case GameWon:
 		{
+			titleFont->Draw("YOU WON!", screenCenterX, screenCenterY, kGreen);
+			menuFont->Draw(
+				("Final Score: " + to_string(player.getPoints())).c_str(),
+				420, 310, kWhite
+			);
+
+			menuFont->Draw("Press ESC to QUIT", 420, 420, kWhite);
+
 			break;
 		}
 		default:
