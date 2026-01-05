@@ -96,7 +96,7 @@ class PlayerSphere : public Sphere {
 	const float kRotationSpeed = 120.0f;
 	float rotationSpeed;
 public:
-	PlayerSphere(IMesh* mesh) : Sphere(mesh, 0, 0) {
+	PlayerSphere(IMesh* mesh) : Sphere(mesh, 0, -40) {
 		rotationSpeed = kRotationSpeed;
 	}
 	void Control(I3DEngine* engine, float dt) {
@@ -111,7 +111,7 @@ public:
 class EnemySphere : public Sphere {
 	float idleDirection;
 public:
-	EnemySphere(IMesh* mesh) : Sphere(mesh, 20, 20, "enemysphere.jpg") {
+	EnemySphere(IMesh* mesh) : Sphere(mesh, 0, 40, "enemysphere.jpg") {
 		idleDirection = random(0.0f, 360.0f);
 		baseSpeed = baseSpeed / 2;
 		speed = baseSpeed;
@@ -147,21 +147,42 @@ class CubeManager {
 	IModel* cubes[numCubes];
 	IMesh* mesh;
 	float collisionDistance;
+	float distanceBetweenCubes;
+
+	bool tooCloseToCubes(float x, float z) {
+		for (int i = 0; i < numCubes; i++) {
+			if (!cubes[i])continue;
+
+			float dx = cubes[i]->GetX() - x;
+			float dz = cubes[i]->GetZ() - z;
+
+			if (dx * dx + dz * dz < distanceBetweenCubes * distanceBetweenCubes)return true;
+		}
+		return false;
+	}
 public:
 	CubeManager(IMesh* m) {
 		mesh = m;
 		collisionDistance = 2.5f;
+		distanceBetweenCubes = 10.0f;
 		for (int i = 0; i < numCubes; i++)cubes[i] = nullptr;
 	}
 
 	void spawnAll(IModel* player, IModel* enemy) {
 		for (int i = 0; i < numCubes; i++) {
 			float x, z;
+			bool valid;
 			do {
 				x = random(-95.0, 95.0);
 				z = random(-95.0, 95.0);
-			} while ((abs(x - player->GetX()) < 15 && abs(z - player->GetZ()) < 15)
-				|| (abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15));
+
+				valid = abs(x - player->GetX()) >= 15 &&
+					abs(z - player->GetZ()) >= 15 &&
+					abs(x - enemy->GetX()) >= 15 &&
+					abs(z - enemy->GetZ()) >= 15 &&
+					!tooCloseToCubes(x, z);
+
+			} while (!valid);
 			cubes[i] = mesh->CreateModel(x, 2.5f, z);
 		}
 	}
@@ -184,11 +205,18 @@ public:
 	void respawn(int i, IModel* player, IModel* enemy) {
 		if (!cubes[i])return;
 		float x, z;
+		bool valid;
 		do {
 			x = random(-95.0, 95.0);
 			z = random(-95.0, 95.0);
-		} while ((abs(x - player->GetX()) < 15 && abs(z - player->GetZ()) < 15)
-			|| (abs(x - enemy->GetX()) < 15 && abs(z - enemy->GetZ()) < 15));
+
+			valid = abs(x - player->GetX()) >= 15 &&
+				abs(z - player->GetZ()) >= 15 &&
+				abs(x - enemy->GetX()) >= 15 &&
+				abs(z - enemy->GetZ()) >= 15 &&
+				!tooCloseToCubes(x, z);
+
+		} while (!valid);
 		cubes[i]->SetPosition(x, 2.5f, z);
 	}
 	float getCollisionDistance() { return collisionDistance; }
@@ -203,6 +231,27 @@ public:
 
 			if (dist <= 50.0f) cubes[i]->Move(dx * dt, 0, dz * dt);
 		}
+	}
+
+	void getValidSpawnPosition(
+		float& x, float& z,
+		IModel* player,
+		IModel* enemy
+	) {
+		bool valid;
+
+		do {
+			x = random(-95.0f, 95.0f);
+			z = random(-95.0f, 95.0f);
+
+			valid =
+				abs(x - player->GetX()) >= 15 &&
+				abs(z - player->GetZ()) >= 15 &&
+				abs(x - enemy->GetX()) >= 15 &&
+				abs(z - enemy->GetZ()) >= 15 &&
+				!tooCloseToCubes(x, z);
+
+		} while (!valid);
 	}
 };
 
@@ -222,7 +271,7 @@ public:
 
 	void deActive() {
 		active = false;
-		model->SetPosition(0, -1000, 0);
+		model->SetPosition(-1000, -1000, -1000);
 	}
 	float getCollisionDistance() { return collisionDistance; }
 };
@@ -258,15 +307,11 @@ void main()
 	CubeManager cubes(CubeMesh);
 	cubes.spawnAll(player.getModel(), enemy.getModel());
 	float hx, hz;
-	do {
-		hx = random(-95.0f, 95.0f);
-		hz = random(-95.0f, 95.0f);
-	} while (
-		(abs(hx - player.getModel()->GetX()) < 15 &&
-		abs(hz - player.getModel()->GetZ()) < 15) ||
-		(abs(hx - enemy.getModel()->GetX()) < 15 &&
-			abs(hz - enemy.getModel()->GetZ()) < 15)
-		);
+	cubes.getValidSpawnPosition(
+		hx, hz,
+		player.getModel(),
+		enemy.getModel()
+	);
 
 	HyperCube hyper(CubeMesh, hx, hz);
 
@@ -363,7 +408,7 @@ void main()
 
 			if (!hyper.isActive()) {
 				if (player.isHyper()) cubes.attractCubes(player.getModel(), deltaTime);
-				else cubes.attractCubes(enemy.getModel(), deltaTime);
+				if (enemy.isHyper()) cubes.attractCubes(enemy.getModel(), deltaTime);
 			}
 
 			if (Collision(player.getModel(), enemy.getModel(), player.getCollisionDistance() + enemy.getCollisionDistance())) {
