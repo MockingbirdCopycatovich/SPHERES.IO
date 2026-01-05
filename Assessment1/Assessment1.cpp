@@ -36,19 +36,21 @@ protected:
 	const float kSphereSpeed = 60.0f;
 	float speed;
 	float scaleFactor;
+	int size;
 
 	bool hyperState;
 	float hyperTimer;
 	float baseSpeed;
 public:
 	Sphere(IMesh* mesh, float x, float z, const string& skin = "") {
-		model = mesh->CreateModel(x, 10, z);
+		model = mesh->CreateModel(x, 10.0f, z);
 		if (!skin.empty()) model->SetSkin(skin.c_str());
 		points = 0;
 		collisionDistance = 10.0f;
 		speed = kSphereSpeed;
 		baseSpeed = speed;
 		scaleFactor = 1.2f;
+		size = 0;
 
 		hyperState = false;
 		hyperTimer = 0.0f;
@@ -60,10 +62,12 @@ public:
 
 	void addPoints() {
 		points += 10;
-		if (points % 40 == 0) {
+		int newSize = points / 40;
+		if (newSize > size) {
 			model->Scale(scaleFactor);
 			collisionDistance *= scaleFactor;
-			model->SetY(10.0f);
+			model->SetY(collisionDistance);
+			size = newSize;
 		}
 	}
 
@@ -71,7 +75,7 @@ public:
 		if (hyperState)return;
 		hyperState = true;
 		hyperTimer = 5.0f;
-		speed = baseSpeed * 1.5;
+		speed = baseSpeed * 1.2;
 		model->SetSkin("hypersphere.jpg");
 	}
 
@@ -109,7 +113,7 @@ class EnemySphere : public Sphere {
 public:
 	EnemySphere(IMesh* mesh) : Sphere(mesh, 20, 20, "enemysphere.jpg") {
 		idleDirection = random(0.0f, 360.0f);
-		baseSpeed = baseSpeed * 3 / 4;
+		baseSpeed = baseSpeed / 2;
 		speed = baseSpeed;
 	}
 
@@ -298,8 +302,8 @@ void main()
 		if (myEngine->KeyHit(Key_2)) {
 			camera->SetPosition(150.0f, 150.0f, -150.0f);
 			camera->ResetOrientation();
-			camera->RotateX(45.0f);
-			camera->RotateY(-45.0f);
+			camera->RotateLocalY(-45.0f);
+			camera->RotateLocalX(45.0f);
 			isIsometric = true;
 		}
 
@@ -408,13 +412,8 @@ void main()
 				enemy.getModel()->RotateY(random(90.0f, 360.0f));
 			}
 
-			menuFont->Draw(
-				("Player: " + to_string(player.getPoints())).c_str(),
-				900, 20, kWhite);
-
-			menuFont->Draw(
-				("Enemy: " + to_string(enemy.getPoints())).c_str(),
-				900, 40, kRed);
+			menuFont->Draw(("Player: " + to_string(player.getPoints())).c_str(),1000, 20, kWhite);
+			menuFont->Draw(("Enemy: " + to_string(enemy.getPoints())).c_str(),1000, 60, kRed);
 
 			if (myEngine->KeyHit(Key_P))state = Paused;
 
@@ -422,9 +421,8 @@ void main()
 		}
 		case Paused:
 		{
-			menuFont->Draw(
-				"Game is PAUSED", 500, 500, kWhite
-			);
+			menuFont->Draw("Game is PAUSED", screenCenterX - 100, screenCenterY, kWhite);
+			menuFont->Draw("Press P to UNPAUSE", screenCenterX - 100, screenCenterY + 50, kWhite);
 			if (myEngine->KeyHit(Key_P))state = Playing;
 			break;
 		}
@@ -448,13 +446,10 @@ void main()
 		}
 		case GameWon:
 		{
-			titleFont->Draw("YOU WON!", screenCenterX, screenCenterY, kGreen);
-			menuFont->Draw(
-				("Final Score: " + to_string(player.getPoints())).c_str(),
-				420, 310, kWhite
-			);
+			titleFont->Draw("YOU WON!", screenCenterX - 100, screenCenterY, kGreen);
+			menuFont->Draw(("Final Score: " + to_string(player.getPoints())).c_str(), screenCenterX - 100, screenCenterY + 100, kWhite);
 
-			menuFont->Draw("Press ESC to QUIT", 420, 420, kWhite);
+			menuFont->Draw("Press ESC to QUIT", screenCenterX - 100, screenCenterY + 150, kWhite);
 
 			break;
 		}
