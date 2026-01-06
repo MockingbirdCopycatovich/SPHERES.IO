@@ -37,20 +37,24 @@ protected:
 	float speed;
 	float scaleFactor;
 	int size;
+	float currentScale;
+	string defoultSkin;
 
 	bool hyperState;
 	float hyperTimer;
 	float baseSpeed;
 public:
-	Sphere(IMesh* mesh, float x, float z, const string& skin = "") {
+	Sphere(IMesh* mesh, float x, float z, const string& skin) {
 		model = mesh->CreateModel(x, 10.0f, z);
 		if (!skin.empty()) model->SetSkin(skin.c_str());
+		defoultSkin = skin;
 		points = 0;
 		collisionDistance = 10.0f;
 		speed = kSphereSpeed;
 		baseSpeed = speed;
 		scaleFactor = 1.2f;
 		size = 0;
+		currentScale = 1.0f;
 
 		hyperState = false;
 		hyperTimer = 0.0f;
@@ -64,7 +68,9 @@ public:
 		points += 10;
 		int newSize = points / 40;
 		if (newSize > size) {
-			model->Scale(scaleFactor);
+			currentScale *= scaleFactor;
+			model->ResetScale();
+			model->Scale(currentScale);
 			collisionDistance *= scaleFactor;
 			model->SetY(collisionDistance);
 			size = newSize;
@@ -85,6 +91,7 @@ public:
 			if (hyperTimer <= 0.0f) {
 				hyperState = false;
 				speed = baseSpeed;
+				model->SetSkin(defoultSkin.c_str());
 			}
 		}
 	}
@@ -96,7 +103,7 @@ class PlayerSphere : public Sphere {
 	const float kRotationSpeed = 120.0f;
 	float rotationSpeed;
 public:
-	PlayerSphere(IMesh* mesh) : Sphere(mesh, 0, -40) {
+	PlayerSphere(IMesh* mesh) : Sphere(mesh, 0, -40, "regularsphere.jpg") {
 		rotationSpeed = kRotationSpeed;
 	}
 	void Control(I3DEngine* engine, float dt) {
@@ -122,10 +129,14 @@ public:
 
 		if (!target) return;
 		model->LookAt(target);
+		model->ResetScale();
+		model->Scale(currentScale);
 		model->MoveLocalZ(speed * dt);
+		model->SetY(10.0f * currentScale);
 	}
 	void idle(float dt) {
 		model->MoveLocalZ(speed * 0.5f * dt);
+		model->SetY(10.0f * currentScale);
 
 		float x = model->GetX();
 		float z = model->GetZ();
@@ -283,7 +294,8 @@ void main()
 	myEngine->StartWindowed();
 
 	// Add default folder for meshes and other media
-	myEngine->AddMediaFolder("C:\\Users\\adm\\TL-Engine\\Media");
+	//myEngine->AddMediaFolder("C:\\Users\\adm\\TL-Engine\\Media");
+	myEngine->AddMediaFolder(".\\Assessment1Resources");
 
 	/**** Set up your scene here ****/
 	srand(time(NULL));
