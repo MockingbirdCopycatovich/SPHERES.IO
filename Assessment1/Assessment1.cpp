@@ -38,7 +38,7 @@ protected:
 	float scaleFactor;
 	int size;
 	float currentScale;
-	string defoultSkin;
+	string defaultSkin;
 
 	bool hyperState;
 	float hyperTimer;
@@ -47,7 +47,7 @@ public:
 	Sphere(IMesh* mesh, float x, float z, const string& skin) {
 		model = mesh->CreateModel(x, 10.0f, z);
 		if (!skin.empty()) model->SetSkin(skin.c_str());
-		defoultSkin = skin;
+		defaultSkin = skin;
 		points = 0;
 		collisionDistance = 10.0f;
 		speed = kSphereSpeed;
@@ -91,7 +91,7 @@ public:
 			if (hyperTimer <= 0.0f) {
 				hyperState = false;
 				speed = baseSpeed;
-				model->SetSkin(defoultSkin.c_str());
+				model->SetSkin(defaultSkin.c_str());
 			}
 		}
 	}
