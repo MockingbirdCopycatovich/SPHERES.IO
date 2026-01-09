@@ -1,4 +1,7 @@
-// test.cpp: A program using the TL-Engine
+// CO1301 Games Concepts - Assessment 1
+// Student Name: Vladislav Vasilev
+// Student ID: G21303193
+// Description: Spheres.io inspired 3D game using TL-Engine
 
 #include <TL-Engine.h>	// TL-Engine include file and namespace
 #include <cstdlib> 
@@ -7,19 +10,22 @@
 using namespace tle; 
 using namespace std;
 
+// Enumeration to control the different states of the game
 enum GameState
 {
-	Start,
-	Playing,
-	Paused,
-	GameWon,
-	GameOver
+	Start,      // Main menu
+	Playing,    // Normal gameplay
+	Paused,     // Game paused
+	GameWon,    // Player wins
+	GameOver    // Player loses
 };
 
 float random(float min, float max) { 
 	return min + float((max - min + 1) * rand() / (RAND_MAX + 1.0)); 
 }
 
+// Checks collision between two models using distance-based detection
+// Used for sphere-to-sphere and sphere-to-cube collision
 bool Collision(IModel* a, IModel* b, float dist) {
 
 	float dx = a->GetX() - b->GetX();
@@ -28,6 +34,8 @@ bool Collision(IModel* a, IModel* b, float dist) {
 	return dx * dx + dz * dz < dist * dist;
 }
 
+// Base class for all spheres (player and enemy)
+// Handles movement speed, scaling, scoring and Hyper Mode
 class Sphere {
 protected:
 	IModel* model;
@@ -64,6 +72,8 @@ public:
 	float getCollisionDistance() { return collisionDistance; }
 	int getPoints() { return points; }
 
+	// Adds points to the sphere
+	// Every 40 points the sphere grows in size by a scale factor
 	void addPoints() {
 		points += 10;
 		int newSize = points / 40;
@@ -77,6 +87,8 @@ public:
 		}
 	}
 
+	// Activates Hyper Mode for 5 seconds
+	// In Hyper Mode the sphere moves faster and attracts nearby cubes
 	void activateHyper() {
 		if (hyperState)return;
 		hyperState = true;
@@ -85,6 +97,7 @@ public:
 		model->SetSkin("hypersphere.jpg");
 	}
 
+	// Checks the status of Hyper Mode and turns it off if necessary
 	void updateHyper(float dt) {
 		if (hyperState) {
 			hyperTimer -= dt;
@@ -99,6 +112,9 @@ public:
 	bool isHyper() { return hyperState; }
 };
 
+// Player-controlled sphere class
+// Inherits from Sphere and adds keyboard-based movement and rotation
+// Handles user input and updates Hyper Mode state
 class PlayerSphere : public Sphere {
 	const float kRotationSpeed = 120.0f;
 	float rotationSpeed;
@@ -106,6 +122,9 @@ public:
 	PlayerSphere(IMesh* mesh) : Sphere(mesh, 0, -40, "regularsphere.jpg") {
 		rotationSpeed = kRotationSpeed;
 	}
+
+	// Processes player input using WASD keys
+	// Also updates Hyper Mode state
 	void Control(I3DEngine* engine, float dt) {
 		updateHyper(dt);
 		if (engine->KeyHeld(Key_W)) model->MoveLocalZ(speed * dt);
@@ -115,6 +134,9 @@ public:
 	}
 };
 
+// Enemy (NPC) sphere class
+// Inherits from Sphere and implements automatic movement behaviour
+// Can chase targets (cubes or hyper cube) and collect points
 class EnemySphere : public Sphere {
 	float idleDirection;
 public:
@@ -124,6 +146,8 @@ public:
 		speed = baseSpeed;
 	}
 
+	// Moves the enemy sphere towards a given target model
+	// Used to chase cubes or the Hyper Cube
 	void update(IModel* target, float dt) {
 		updateHyper(dt);
 
@@ -134,6 +158,8 @@ public:
 		model->MoveLocalZ(speed * dt);
 		model->SetY(10.0f * currentScale);
 	}
+
+	// Function for enemy movement after the game is over
 	void idle(float dt) {
 		model->MoveLocalZ(speed * 0.5f * dt);
 		model->SetY(10.0f * currentScale);
@@ -153,6 +179,8 @@ public:
 	}
 };
 
+// Manages spawning, respawning and collision logic for all cubes
+// Ensures cubes do not spawn too close to each other or spheres
 class CubeManager {
 	static const int numCubes = 12;
 	IModel* cubes[numCubes];
@@ -266,6 +294,8 @@ public:
 	}
 };
 
+// Special cube class used to activate Hyper Mode
+// When collected by a sphere, it enables Hyper Mode for a limited time
 class HyperCube {
 	IModel* model;
 	bool active;
@@ -345,10 +375,15 @@ void main()
 		// Draw the scene
 		myEngine->DrawScene();
 		/**** Update your scene each frame here ****/
+
+		// Calculates the time elapsed since the last frame
+		// Used for frame-rate independent movement
 		deltaTime = myEngine->Timer();
 
+		// Allows the player to quit the game at any time using the Escape key
 		if (myEngine->KeyHit(Key_Escape))myEngine->Stop();
 
+		// Switches to the top-down camera view when key '1' is pressed
 		if (myEngine->KeyHit(Key_1)) {
 			camera->SetPosition(0.0f, 200.0f, 0.0f);
 			camera->ResetOrientation();
@@ -356,6 +391,7 @@ void main()
 			isIsometric = false;
 		}
 
+		// Switches to the isometric camera view when key '2' is pressed
 		if (myEngine->KeyHit(Key_2)) {
 			camera->SetPosition(150.0f, 150.0f, -150.0f);
 			camera->ResetOrientation();
@@ -367,20 +403,31 @@ void main()
 		int screenCenterX = 600;
 		int screenCenterY = 300;
 
+		// Handles game behaviour depending on the current game state
 		switch (state)
 		{
+		// Start state
+		// Displays the main menu and waits for player input to begin the game
 		case Start:
 		{	
 			titleFont->Draw("SPHERES.IO", screenCenterX - 200, screenCenterY, kWhite);
 			menuFont->Draw("by Vladislav Vasilev", screenCenterX + 50, screenCenterY + 80, kLightGrey);
 			menuFont->Draw("Press SPACE to Start", screenCenterX - 180, screenCenterY + 150, kRed);
+
+			// Starts the game when SPACE is pressed
 			if (myEngine->KeyHit(Key_Space))state = Playing;
 			break;
 		}
+		// Playing state
+		// Handles player and enemy movement, collisions,
+		// scoring, camera control and win/lose conditions
 		case Playing:
 		{
+			// Processes player input and movement
 			player.Control(myEngine, deltaTime);
 
+			// Determines the current target for the enemy sphere
+			// Enemy prioritises the Hyper Cube when it is active
 			IModel* target = nullptr;
 			if (hyper.isActive()) {
 				target = hyper.getModel();
@@ -388,17 +435,23 @@ void main()
 			else {
 				target = cubes.findClosest(enemy.getModel());
 			}
+
+			// Updates enemy movement towards the selected target
 			enemy.update(target, deltaTime);
 
+			// Checks collisions between the player and all cubes
+			// Awards points and respawns cubes when collected
 			for (int i = 0; i < 12; i++) {
 				IModel* cube = cubes.getCube(i);
 				if (!cube)continue;
 
+				// Player collects cube
 				if (Collision(player.getModel(), cube, player.getCollisionDistance() + cubes.getCollisionDistance())) {
 					player.addPoints();
 					cubes.respawn(i, player.getModel(), enemy.getModel());
 				}
 
+				// Enemy collects cube
 				if (Collision(enemy.getModel(), cube, enemy.getCollisionDistance() + cubes.getCollisionDistance())) {
 					enemy.addPoints();
 					cubes.respawn(i, player.getModel(), enemy.getModel());
@@ -406,6 +459,8 @@ void main()
 
 			}
 
+			// Checks collision with the Hyper Cube
+			// Activates Hyper Mode for player or enemy when collected
 			if (hyper.isActive()) {
 				if (Collision(player.getModel(), hyper.getModel(), player.getCollisionDistance() + hyper.getCollisionDistance())) {
 					player.activateHyper();
@@ -418,11 +473,15 @@ void main()
 				}
 			}
 
+			// Attracts nearby cubes when Hyper Mode is active
 			if (!hyper.isActive()) {
 				if (player.isHyper()) cubes.attractCubes(player.getModel(), deltaTime);
 				if (enemy.isHyper()) cubes.attractCubes(enemy.getModel(), deltaTime);
 			}
 
+			// Handles collision between player and enemy spheres
+			// Spheres bounce off each other if the point difference is small
+			// Otherwise the stronger sphere consumes the weaker one
 			if (Collision(player.getModel(), enemy.getModel(), player.getCollisionDistance() + enemy.getCollisionDistance())) {
 				int diff = abs(player.getPoints() - enemy.getPoints());
 
@@ -444,12 +503,16 @@ void main()
 				}
 			}
 
+			// Checks win condition for player
 			if (player.getPoints() >= 120) state = GameWon;
+
+			// Checks win condition for enemy
 			if (enemy.getPoints() >= 120) {
 				state = GameOver;
 				enemy.getModel()->RotateY(random(90.0f, 360.0f));
 			}
 
+			// Allows camera movement in top-down view using arrow keys
 			if (!isIsometric) {
 				float camMoveSpeed = cameraSpeed * deltaTime;
 				if (myEngine->KeyHeld(Key_Up)) camera->MoveZ(camMoveSpeed);
@@ -458,6 +521,8 @@ void main()
 				if (myEngine->KeyHeld(Key_Right)) camera->MoveX(camMoveSpeed);
 			}
 
+			// Ends the game if the player moves outside the island boundaries
+			// This simulates the player falling into the water
 			float playerPosX = player.getModel()->GetX();
 			float playerPosZ = player.getModel()->GetZ();
 			if (-100 >= playerPosX
@@ -469,13 +534,24 @@ void main()
 				enemy.getModel()->RotateY(random(90.0f, 360.0f));
 			}
 
-			menuFont->Draw(("Player: " + to_string(player.getPoints())).c_str(),1000, 20, kWhite);
-			menuFont->Draw(("Enemy: " + to_string(enemy.getPoints())).c_str(),1000, 60, kRed);
+			// Displays player and enemy scores
+			// The higher score is shown first, aligned to the right
+			if (player.getPoints() >= enemy.getPoints()) {
+				menuFont->Draw(("Player: " + to_string(player.getPoints())).c_str(), 1000, 20, kWhite);
+				menuFont->Draw(("Enemy: " + to_string(enemy.getPoints())).c_str(), 1000, 60, kRed);
+			}
+			else {
+				menuFont->Draw(("Enemy: " + to_string(enemy.getPoints())).c_str(), 1000, 60, kRed);
+				menuFont->Draw(("Player: " + to_string(player.getPoints())).c_str(), 1000, 20, kWhite);
+			}
 
+			// Toggles pause state when 'P' key is pressed
 			if (myEngine->KeyHit(Key_P))state = Paused;
 
 			break;
 		}
+		// Paused state
+		// Freezes all movement and displays pause message
 		case Paused:
 		{
 			menuFont->Draw("Game is PAUSED", screenCenterX - 100, screenCenterY, kWhite);
@@ -483,6 +559,9 @@ void main()
 			if (myEngine->KeyHit(Key_P))state = Playing;
 			break;
 		}
+		// GameOver state
+		// Displays final scores
+		// Enemy sphere continues moving around the island
 		case GameOver:
 		{
 			titleFont->Draw("GAME OVER", screenCenterX - 100, screenCenterY - 50, kRed);
@@ -501,6 +580,9 @@ void main()
 
 			break;
 		}
+		// GameWon state
+		// Displays congratulatory message and final score
+		// Player movement is disabled
 		case GameWon:
 		{
 			titleFont->Draw("YOU WON!", screenCenterX - 100, screenCenterY, kGreen);
