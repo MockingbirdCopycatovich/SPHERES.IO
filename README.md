@@ -9,10 +9,8 @@ This project was created as part of **CO1301 Games Concepts – Assessment 1**.
 
 ## 📌 Student Information
 
-- **Student Name:** Vladislav Vasilev  
-- **Student ID:** G21303193  
+- **Developer Name:** Vladislav Vasilev  
 - **Module:** CO1301 Games Concepts  
-- **Assessment:** Assessment 1  
 
 ---
 
@@ -110,16 +108,16 @@ An **Enemy Sphere** (AI) is also present and competes with the player by collect
 
 2. **Create a new C++ project in TL-Engine**
    - Launch TL-Engine
-   - Create a new C++ project
+   - Create a new TL-Engine project
 
 3. **Copy the source code**
-   - Open the `test.cpp` file in the newly created project
+   - Open the `Your_Project_Name.cpp` file in the newly created project
    - Replace its contents with the code from this repository
 
 4. **Add game resources**
    - Copy the **`Resources`** folder from this repository
    - Paste it into the TL-Engine project directory  
-     *(on the same level as `test.cpp`)*
+     *(on the same level as `Your_Project_Name.cpp`)*
 
 5. **Build and run**
    - Compile the project
@@ -128,7 +126,7 @@ An **Enemy Sphere** (AI) is also present and competes with the player by collect
 ---
 
 ## 📁 Project Structure
-
+```
 SPHERES.IO
 │
 ├── SpheresIO.cpp
@@ -139,7 +137,7 @@ SPHERES.IO
 ├── LICENCE
 ├── .gitignore
 └── README.md
-
+```
 ## 📌 Notes
 
 - This project is designed to run **only with TL-Engine**
