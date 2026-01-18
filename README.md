@@ -14,18 +14,6 @@ This project was created as part of **CO1301 Games Concepts – Assessment 1**.
 
 ---
 
-## 🎥 Gameplay Video
-
-▶️ **Gameplay video:**  
-*(insert link here)*
-
-Example:
-
-
-The video demonstrates the core gameplay mechanics, scoring system, Hyper Mode, enemy AI behaviour, game states, and win/lose conditions.
-
----
-
 ## 🕹️ Gameplay Overview
 
 The player controls a **Player Sphere** on an island surrounded by water.  
