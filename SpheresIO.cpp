@@ -325,7 +325,7 @@ void main()
 
 	// Add default folder for meshes and other media
 	//myEngine->AddMediaFolder("C:\\Users\\adm\\TL-Engine\\Media");
-	myEngine->AddMediaFolder(".\\Assessment1Resources");
+	myEngine->AddMediaFolder(".\\Resources");
 
 	/**** Set up your scene here ****/
 	srand(time(NULL));
