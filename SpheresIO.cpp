@@ -1,6 +1,4 @@
-// CO1301 Games Concepts - Assessment 1
 // Student Name: Vladislav Vasilev
-// Student ID: G21303193
 // Description: Spheres.io inspired 3D game using TL-Engine
 
 #include <TL-Engine.h>	// TL-Engine include file and namespace
